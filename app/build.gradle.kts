@@ -13,16 +13,28 @@ android {
         minSdk = 26
         targetSdk = 37
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "1.0.0"
     }
     buildFeatures { compose = true }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    // Release signing comes from the environment (CI secrets, see .github/workflows/release.yml).
+    // Without KEYSTORE_FILE the release APK is left unsigned and cannot be installed.
+    val keystore = providers.environmentVariable("KEYSTORE_FILE").orNull
+    signingConfigs {
+        if (keystore != null) create("release") {
+            storeFile = file(keystore)
+            storePassword = providers.environmentVariable("KEYSTORE_PASSWORD").get()
+            keyAlias = providers.environmentVariable("KEY_ALIAS").get()
+            keyPassword = providers.environmentVariable("KEY_PASSWORD").get()
+        }
+    }
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release")
         }
     }
     lint {

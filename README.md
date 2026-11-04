@@ -13,6 +13,10 @@
 | 包名 | `com.kubb.tv` |
 | 安装 | 侧载 APK，不在应用商店上架 |
 
+## 安装
+
+从 [Releases](https://github.com/shichen35/kubb-android-tv/releases/latest) 下载最新的 APK，侧载到电视上（例如 `adb install kubb-tv-1.0.0.apk`）。首次安装需要在电视设置里允许安装未知来源的应用。
+
 ## 功能
 
 - **首页**：精选推荐、继续观看（带进度条）、我的收藏、热播榜（四个频道周榜交替），以及电影、电视剧、综艺、动漫、短剧的热门排行。
@@ -53,6 +57,8 @@
 ./tools/check.sh                 # lint（警告即失败）、单元测试、构建 debug APK
 ./gradlew :app:installDebug      # 安装到已连接的电视或模拟器
 ```
+
+发版：在 `app/build.gradle.kts` 里改版本号，把发布说明写进 `docs/releases/vX.Y.Z.md`，提交后推送同名 tag（如 `git tag v1.0.0 && git push origin v1.0.0`）。GitHub Actions 会跑完检查、用仓库 Secrets 里的密钥签名，并发布 Release。
 
 代码结构：
 

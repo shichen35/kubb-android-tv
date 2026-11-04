@@ -1,0 +1,39 @@
+name: Release
+
+# Push a tag like v1.0.0 with docs/releases/v1.0.0.md committed: checks pass, then the
+# signed APK is published as a GitHub Release with those notes.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v5
+      - name: Lint, unit tests and debug build
+        run: ./tools/check.sh
+      - name: Build the signed release APK
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          export KEYSTORE_FILE="$RUNNER_TEMP/release.jks"
+          echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_FILE"
+          ./gradlew :app:assembleRelease
+          # An unsigned build is named app-release-unsigned.apk, so this copy fails without the key.
+          cp app/build/outputs/apk/release/app-release.apk "kubb-tv-${GITHUB_REF_NAME#v}.apk"
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" "kubb-tv-${GITHUB_REF_NAME#v}.apk" --title "酷播 TV ${GITHUB_REF_NAME#v}" --notes-file "docs/releases/$GITHUB_REF_NAME.md"
