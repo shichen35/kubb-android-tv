@@ -19,7 +19,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,11 +44,14 @@ internal fun HomeScreen(vm: AppViewModel, open: (Summary) -> Unit, play: (Summar
     val home by vm.home.collectAsStateWithLifecycle()
     val history by vm.library.history.collectAsStateWithLifecycle()
     val favorites by vm.library.favorites.collectAsStateWithLifecycle()
+    var broken by remember { mutableStateOf(emptySet<String>()) }
     if (home.loading && history.isEmpty()) return Message("正在加载…")
     LazyColumn(contentPadding = PaddingValues(bottom = 48.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
-        if (home.banners.isNotEmpty()) item("banners") {
+        // A banner whose image fails (the site's CDN has 404s) gives way to the next one.
+        val banners = home.banners.filter { it.id !in broken }.take(2)
+        if (banners.isNotEmpty()) item("banners") {
             LazyRow(contentPadding = PaddingValues(horizontal = SafeX), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                items(home.banners.take(2), key = { it.id }) { b -> BannerCard(b) { open(Summary(b.id, b.name, b.pic)) } }
+                items(banners, key = { it.id }) { b -> BannerCard(b, onBroken = { broken = broken + b.id }) { open(Summary(b.id, b.name, b.pic)) } }
             }
         }
         val watching = history.filter { it.watch != null }
@@ -89,7 +94,7 @@ private fun <T> PosterRow(title: String, items: List<T>, key: (T) -> Any, card: 
 }
 
 @Composable
-private fun BannerCard(banner: Banner, onClick: () -> Unit) {
+private fun BannerCard(banner: Banner, onBroken: () -> Unit, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
     Box(
@@ -99,7 +104,7 @@ private fun BannerCard(banner: Banner, onClick: () -> Unit) {
             .padding(5.dp).clip(RoundedCornerShape(10.dp)).background(Panel)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick),
     ) {
-        AsyncImage(imageUrl(banner.pic), banner.name, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        AsyncImage(imageUrl(banner.pic), banner.name, Modifier.fillMaxSize(), contentScale = ContentScale.Crop, onError = { onBroken() })
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .8f)))))
         Text(
             banner.name, color = TextPrimary, fontSize = 26.sp, fontWeight = FontWeight.Bold,
